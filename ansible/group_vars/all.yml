@@ -1,0 +1,14 @@
+pip_install_packages:
+  - name: docker
+
+redmine_version: latest
+redmine_port: 3000
+redmine_image: redmine:latest
+redmine_container_name: redmine_app
+redmine_http_port: 3000
+redmine_data_dir: /opt/redmine/data
+redmine_config_dir: /opt/redmine/config
+datadog_data_dir: /etc/datadog-agent
+
+datadog_site: "datadoghq.eu"
+datadog_tags: "env:production,service:redmine"

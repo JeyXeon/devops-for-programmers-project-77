@@ -1,0 +1,66 @@
+- name: Deploy application playbook
+  hosts: webservers
+  roles:
+    - role: datadog.dd.agent
+      become: true
+      tags: datadog
+
+  tasks:
+    - name: Ensure Docker service is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+      tags:
+        - redmine
+        - datadog
+
+    - name: Create directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ redmine_data_dir }}"
+      become: true
+      tags: redmine
+
+    - name: Generate .env file
+      ansible.builtin.template:
+        src: redmine.env.j2
+        dest: "{{ redmine_data_dir }}/.env"
+        mode: '0640'
+      become: true
+      tags: redmine
+
+    - name: Run Redmine container
+      community.docker.docker_container:
+        name: "{{ redmine_container_name }}"
+        image: "{{ redmine_image }}"
+        state: started
+        restart: true
+        pull: true
+        ports:
+          - "{{ redmine_port }}:3000"
+        volumes:
+          - "{{ redmine_data_dir }}:/usr/src/redmine/files"
+        env_file: "{{ redmine_data_dir }}/.env"
+      become: true
+      tags: redmine
+
+    - name: Configure Datadog agent
+      ansible.builtin.template:
+        src: datadog.yml.j2
+        dest: "{{ datadog_data_dir }}/datadog.yml"
+        mode: '0640'
+      notify: Restart Datadog agent
+      become: true
+      tags: datadog
+
+  handlers:
+    - name: Restart Datadog agent
+      ansible.builtin.service:
+        name: datadog-agent
+        state: restarted
+      become: true
+      tags: datadog
