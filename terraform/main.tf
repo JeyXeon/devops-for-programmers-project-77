@@ -39,6 +39,27 @@ resource "yandex_vpc_security_group" "web_sg" {
     to_port        = 65535
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
+
+  egress {
+    protocol       = "TCP"
+    port           = 443
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    description    = "Outbound to Datadog"
+  }
+
+  egress {
+    protocol       = "TCP"
+    port           = 8125
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    description    = "StatsD metrics to Datadog"
+  }
+
+  egress {
+    protocol       = "TCP"
+    port           = 10516
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    description    = "Logs to Datadog"
+  }
 }
 
 # ВМ
@@ -46,7 +67,7 @@ resource "yandex_compute_instance" "web_server" {
   count       = 2
   name        = "web-server-${count.index + 1}"
   platform_id = "standard-v1"
-  zone        = "ru-central1-a"
+  zone        = var.yc_zone
 
   resources {
     cores  = 2
@@ -84,7 +105,7 @@ resource "yandex_alb_load_balancer" "web_alb" {
 
   allocation_policy {
     location {
-      zone_id   = "ru-central1-a"
+      zone_id   = var.yc_zone
       subnet_id = yandex_vpc_subnet.web_subnet.id
     }
   }
@@ -118,7 +139,7 @@ resource "yandex_alb_http_router" "web_router" {
 resource "yandex_alb_virtual_host" "web_vhost" {
   name           = "web-vhost"
   http_router_id = yandex_alb_http_router.web_router.id
-  authority      = ["mitynedima.ru"]
+  authority      = [var.yc_domain]
 
   route {
     name = "web-route"
@@ -172,5 +193,31 @@ output "web_servers_ips" {
   value = {
     for instance in yandex_compute_instance.web_server :
     instance.name => instance.network_interface.0.nat_ip_address
+  }
+}
+
+# Монитор доступности сервера
+resource "datadog_monitor" "web_server_status" {
+  name    = "[Web] Server Status - {{host.name}}"
+  type    = "service check"
+  query   = "\"datadog.agent.up\".over(\"env:production\",\"service:web\").by(\"host\").last(2).count_by_status()"
+  message = "Web server {{host.name}} is down!"
+
+  monitor_thresholds {
+    critical = 1
+    warning  = 1
+  }
+}
+
+# Монитор нагрузки CPU
+resource "datadog_monitor" "web_cpu_usage" {
+  name    = "[Web] High CPU Usage - {{host.name}}"
+  type    = "metric alert"
+  query   = "avg(last_5m):avg:system.cpu.user{env:production,service:web} by {host} > 80"
+  message = "High CPU usage detected on {{host.name}}"
+
+  monitor_thresholds {
+    critical = 80
+    warning  = 70
   }
 }

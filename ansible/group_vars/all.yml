@@ -12,3 +12,4 @@ datadog_data_dir: /etc/datadog-agent
 
 datadog_site: "datadoghq.eu"
 datadog_tags: "env:production,service:redmine"
+datadog_api_key: {{ secret_datadog_api_key }}
