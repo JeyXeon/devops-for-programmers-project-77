@@ -1,3 +1,11 @@
+apply-terraform-project: 
+	make init-terraform-project
+	terraform apply -auto-approve
+
+destroy-terraform-project: 
+	make init-terraform-project
+	terraform destroy -auto-approve
+
 init-terraform-project:
 	terraform init -backend-config=backend.conf
 

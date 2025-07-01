@@ -13,6 +13,12 @@ ansible-setup-servers:
 ansible-setup-requirements:
 	make -C ./ansible setup-requirements
 
+terraform-apply-project:
+	make -C ./terraform apply-terraform-project
+
+terraform-destroy-project:
+	make -C ./terraform destroy-terraform-project
+
 terraform-init-project:
 	make -C ./terraform init-terraform-project
 

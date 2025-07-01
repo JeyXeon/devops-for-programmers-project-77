@@ -33,32 +33,18 @@ resource "yandex_vpc_security_group" "web_sg" {
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    protocol       = "TCP"
+    port           = 3000
+    v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     protocol       = "ANY"
     from_port      = 0
     to_port        = 65535
     v4_cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    protocol       = "TCP"
-    port           = 443
-    v4_cidr_blocks = ["0.0.0.0/0"]
-    description    = "Outbound to Datadog"
-  }
-
-  egress {
-    protocol       = "TCP"
-    port           = 8125
-    v4_cidr_blocks = ["0.0.0.0/0"]
-    description    = "StatsD metrics to Datadog"
-  }
-
-  egress {
-    protocol       = "TCP"
-    port           = 10516
-    v4_cidr_blocks = ["0.0.0.0/0"]
-    description    = "Logs to Datadog"
+    description    = "Outbound traffic"
   }
 }
 
@@ -158,7 +144,7 @@ resource "yandex_alb_backend_group" "web_backend" {
   http_backend {
     name             = "web-backend"
     weight           = 1
-    port             = 80
+    port             = 3000
     target_group_ids = [yandex_alb_target_group.web_servers.id]
     
     healthcheck {
@@ -200,7 +186,7 @@ output "web_servers_ips" {
 resource "datadog_monitor" "web_server_status" {
   name    = "[Web] Server Status - {{host.name}}"
   type    = "service check"
-  query   = "\"datadog.agent.up\".over(\"env:production\",\"service:web\").by(\"host\").last(2).count_by_status()"
+  query   = "\"datadog.agent.up\".over(\"env:production\",\"service:redmine\").by(\"host\").last(2).count_by_status()"
   message = "Web server {{host.name}} is down!"
 
   monitor_thresholds {
@@ -213,11 +199,21 @@ resource "datadog_monitor" "web_server_status" {
 resource "datadog_monitor" "web_cpu_usage" {
   name    = "[Web] High CPU Usage - {{host.name}}"
   type    = "metric alert"
-  query   = "avg(last_5m):avg:system.cpu.user{env:production,service:web} by {host} > 80"
+  query   = "avg(last_5m):avg:system.cpu.user{env:production,service:redmine} by {host} > 80"
   message = "High CPU usage detected on {{host.name}}"
 
   monitor_thresholds {
     critical = 80
     warning  = 70
   }
+}
+
+resource "local_file" "ansible_inventory" {
+  filename = "../ansible/inventory.ini"
+  content = templatefile("inventory.tftpl", {
+    web_servers_ips = {
+      for instance in yandex_compute_instance.web_server :
+      instance.name => instance.network_interface.0.nat_ip_address
+    }
+  })
 }

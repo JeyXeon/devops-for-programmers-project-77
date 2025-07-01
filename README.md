@@ -15,6 +15,8 @@ Install terraform with this manual: https://developer.hashicorp.com/terraform/in
 | `make terraform-generate-backend-config` | Generates terraform backend template.                  | Make sure that you have terraform backend credentials to fill in. |  
 | `make terraform-generate-variables`  | Generates terraform variables template.                    | Make sure that you have Yandex Cloud credentials to fill in.    | 
 | `make terraform-init-project` | Initialize terraform project with filled yearlier config.         | Make sure that you have have generateed and filled both templates. |
+| `make terraform-apply-project` | Apply terraform project.                                         | Make sure that you have have generateed and filled both templates. |
+| `make terraform-destroy-project` | Destroy terraform project.                                     | Make sure that you have have generateed and filled both templates. |
 
 Other terraform actions can be done directly by using terraform cli tool.
 
